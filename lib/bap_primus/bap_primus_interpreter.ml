@@ -131,6 +131,12 @@ let sexp_of_concat ((x,y),r) = results r @@ sexps [
     string_of_value y;
   ]
 
+let sexp_of_ite ((cond, yes, no), r) = results r @@ sexps [
+  string_of_value cond;
+  string_of_value yes;
+  string_of_value no;
+]
+
 let binop,on_binop =
   Observation.provide ~inspect:sexp_of_binop "binop"
 
@@ -148,6 +154,9 @@ let concat,on_concat =
 
 let const,on_const =
   Observation.provide ~inspect:sexp_of_value "const"
+
+let ite, on_ite =
+  Observation.provide ~inspect:sexp_of_ite "ite"
 
 let sexp_of_name = function
   | `symbol name -> Sexp.Atom name
@@ -263,6 +272,10 @@ module Make (Machine : Machine) = struct
     Memory.set a.value x >>= fun () ->
     !!on_stored (a,x)
 
+  let ite cond yes no =
+    value (if Word.is_one cond.value then yes.value else no.value) >>= fun r ->
+    !!on_ite ((cond, yes, no), r) >>| fun () -> r
+
   let rec eval_exp x =
     let eval = function
       | Bil.Load (Bil.Var _, a,_,`r8) -> eval_load a
@@ -275,6 +288,7 @@ module Make (Machine : Machine) = struct
       | Bil.Unknown (x,typ) -> eval_unknown x typ
       | Bil.Extract (hi,lo,x) -> eval_extract hi lo x
       | Bil.Concat (x,y) -> eval_concat x y
+      | Bil.Ite (cond, yes, no) -> eval_ite cond yes no
       | exp ->
         invalid_argf "precondition failed: denormalized exp: %s"
           (Exp.to_string exp) () in
@@ -282,6 +296,11 @@ module Make (Machine : Machine) = struct
     eval x >>= fun r ->
     !!exp_left x >>| fun () -> r
   and eval_load a = eval_exp a >>= load_byte
+  and eval_ite cond yes no =
+    eval_exp cond >>= fun cond ->
+    eval_exp yes >>= fun yes ->
+    eval_exp no >>= fun no ->
+    ite cond yes no
   and eval_store m a x =
     eval_storage m >>= fun () ->
     eval_exp a >>= fun a ->
