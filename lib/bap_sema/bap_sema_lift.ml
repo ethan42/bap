@@ -75,6 +75,7 @@ let linear_of_stmt ?addr return insn stmt : linear list =
     match return with
     | None -> [
         Instr exn;
+        Instr (goto landing);
         Label landing;
         (* No code was found that follows the interrupt,
            so this is a no-return interrupt *)
@@ -85,6 +86,7 @@ let linear_of_stmt ?addr return insn stmt : linear list =
         Instr (`Jmp ~@(Ir_jmp.create_goto lab));
         Label takeoff;
         Instr exn;
+        Instr (goto landing);
       ] in
 
   let rec linearize = function
