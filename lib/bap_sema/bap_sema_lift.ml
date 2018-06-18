@@ -75,7 +75,6 @@ let linear_of_stmt ?addr return insn stmt : linear list =
     match return with
     | None -> [
         Instr exn;
-        Instr (goto landing);
         Label landing;
         (* No code was found that follows the interrupt,
            so this is a no-return interrupt *)
@@ -86,7 +85,6 @@ let linear_of_stmt ?addr return insn stmt : linear list =
         Instr (`Jmp ~@(Ir_jmp.create_goto lab));
         Label takeoff;
         Instr exn;
-        Instr (goto landing);
       ] in
 
   let rec linearize = function
@@ -94,8 +92,6 @@ let linear_of_stmt ?addr return insn stmt : linear list =
       [Instr (`Def ~@(Ir_def.create lhs rhs))]
     | Bil.If (cond, [],[]) -> []
     | Bil.If (cond,[],no) -> linearize Bil.(If (lnot cond, no,[]))
-    | Bil.If (cond,[Bil.CpuExn n],[]) -> cpuexn ~cond n
-    | Bil.If (cond,[Bil.Jmp exp],[]) -> [jump ~cond exp]
     | Bil.If (cond,yes,[]) ->
       let yes_label = Tid.create () in
       let tail = Tid.create () in
