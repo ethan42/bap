@@ -155,6 +155,10 @@ module type ModeVars = sig
   (** array of YMM registers  *)
   val ymms: var array
 
+  (** [of_reg reg] translates a register [reg] operand to its
+     corresponding variable. *)
+  val of_reg : reg -> var option
+
 end
 
 
@@ -167,3 +171,4 @@ module R64 : ModeVars
 
 (** [vars_of_mode mode] creates registers for a [mode]  *)
 val vars_of_mode : mode -> (module ModeVars)
+

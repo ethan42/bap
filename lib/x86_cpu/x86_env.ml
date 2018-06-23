@@ -2,6 +2,7 @@ open Core_kernel.Std
 open Bap.Std
 
 open X86_types
+open X86_asm_reg_types
 
 type multimodereg = { v32: var; v64: var }
 
@@ -123,6 +124,7 @@ module type ModeVars = sig
   val r : var array
   val nums : var array
   val ymms : var array
+  val of_reg : reg -> var option
 end
 
 module R32 = struct
@@ -159,6 +161,61 @@ module R32 = struct
 
   (* Only 8 YMM/XMM registers in x86 32-bit mode *)
   let ymms = Array.sub ymms 0 8
+
+  (* mapping registers to arch variables *)
+  let of_reg reg =
+    let internal_reg = X86_asm_reg.decode reg in
+    match internal_reg with
+    | None -> None
+    | Some reg ->
+      (match reg with
+       | `AL | `AH | `AX | `EAX -> Some rax
+       | `BL | `BH | `BX | `EBX -> Some rbx
+       | `CL | `CH | `CX | `ECX -> Some rcx
+       | `DL | `DH | `DX | `EDX -> Some rdx
+       | `SIL | `SI | `ESI -> Some rsi
+       | `DIL | `DI | `EDI -> Some rdi
+       | `BPL | `BP | `EBP -> Some rbp
+       | `SPL | `SP | `ESP -> Some rsp
+       | `EIP | `IP -> Some rip
+ 
+       | `GS -> seg_gs
+       | `FS_BASE -> Some fs_base
+       | `CS -> seg_cs
+       | `GS_BASE -> Some gs_base
+       | `DS -> seg_ds
+       | `ES -> seg_es
+       | `SS -> seg_ss
+       | `FS -> seg_fs
+
+       | `XMM0 | `YMM0 -> Some ymms.(0)
+       | `XMM1 | `YMM1 -> Some ymms.(1)
+       | `XMM2 | `YMM2 -> Some ymms.(2)
+       | `XMM3 | `YMM3 -> Some ymms.(3)
+       | `XMM4 | `YMM4 -> Some ymms.(4)
+       | `XMM5 | `YMM5 -> Some ymms.(5)
+       | `XMM6 | `YMM6 -> Some ymms.(6)
+       | `XMM7 | `YMM7 -> Some ymms.(7)
+ 
+       (** 64-bit registers are invalid *)
+       | `R8B | `R9B | `R10B | `R11B
+       | `R12B | `R13B | `R14B | `R15B
+       | `R8W | `R9W | `R10W | `R11W
+       | `R12W | `R13W | `R14W | `R15W
+       | `R8D | `R9D | `R10D | `R11D
+       | `R12D | `R13D | `R14D | `R15D
+       | `RAX | `RBX | `RCX | `RDX
+       | `RDI | `RSI | `RBP | `RSP
+       | `R8 | `R9 | `R10 | `R11
+       | `R12 | `R13 | `R14 | `R15
+       | `RIP
+       | `XMM8 | `YMM8 | `XMM9 | `YMM9
+       | `XMM10 | `YMM10 | `XMM11 | `YMM11
+       | `XMM12 | `YMM12 | `XMM13 | `YMM13
+       | `XMM14 | `YMM14 | `XMM15 | `YMM15
+       ->
+         assert false (* incorrect architecture *)
+      )
 
 end
 
@@ -197,6 +254,59 @@ module R64 = struct
   (* All YMM/XMM registers are available *)
   let ymms = ymms
 
+  (* mapping registers to arch variables *)
+  let of_reg reg =
+    let internal_reg = X86_asm_reg.decode reg in
+    match internal_reg with
+    | None -> None
+    | Some reg ->
+      (match reg with
+       | `AL | `AH | `AX | `EAX | `RAX -> Some rax
+       | `BL | `BH | `BX | `EBX | `RBX -> Some rbx
+       | `CL | `CH | `CX | `ECX | `RCX -> Some rcx
+       | `DL | `DH | `DX | `EDX | `RDX -> Some rdx
+       | `SIL | `SI | `ESI | `RSI -> Some rsi
+       | `DIL | `DI | `EDI | `RDI -> Some rdi
+       | `BPL | `BP | `EBP | `RBP -> Some rbp
+       | `SPL | `SP | `ESP | `RSP -> Some rsp
+       | `R8B | `R8W | `R8D | `R8 -> Some r.(0)
+       | `R9B | `R9W | `R9D | `R9 -> Some r.(1)
+       | `R10B | `R10W | `R10D | `R10 -> Some r.(2)
+       | `R11B | `R11W | `R11D | `R11 -> Some r.(3)
+       | `R12B | `R12W | `R12D | `R12 -> Some r.(4)
+       | `R13B | `R13W | `R13D | `R13 -> Some r.(5)
+       | `R14B | `R14W | `R14D | `R14 -> Some r.(6)
+       | `R15B | `R15W | `R15D | `R15 -> Some r.(7)
+       | `EIP | `IP | `RIP -> Some rip
+
+       | `GS -> seg_gs
+       | `FS_BASE -> Some fs_base
+       | `CS -> seg_cs
+       | `GS_BASE -> Some gs_base
+       | `DS -> seg_ds
+       | `ES -> seg_es
+       | `SS -> seg_ss
+       | `FS -> seg_fs
+
+       | `XMM0 | `YMM0 -> Some ymms.(0)
+       | `XMM1 | `YMM1 -> Some ymms.(1)
+       | `XMM2 | `YMM2 -> Some ymms.(2)
+       | `XMM3 | `YMM3 -> Some ymms.(3)
+       | `XMM4 | `YMM4 -> Some ymms.(4)
+       | `XMM5 | `YMM5 -> Some ymms.(5)
+       | `XMM6 | `YMM6 -> Some ymms.(6)
+       | `XMM7 | `YMM7 -> Some ymms.(7)
+       | `XMM8 | `YMM8 -> Some ymms.(8)
+       | `XMM9 | `YMM9 -> Some ymms.(9)
+       | `XMM10 | `YMM10 -> Some ymms.(10)
+       | `XMM11 | `YMM11 -> Some ymms.(11)
+       | `XMM12 | `YMM12 -> Some ymms.(12)
+       | `XMM13 | `YMM13 -> Some ymms.(13)
+       | `XMM14 | `YMM14 -> Some ymms.(14)
+       | `XMM15 | `YMM15 -> Some ymms.(15)
+      )
+ 
+ 
 end
 
 let vars_of_mode mode =
